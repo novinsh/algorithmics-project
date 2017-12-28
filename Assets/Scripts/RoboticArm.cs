@@ -4,10 +4,12 @@ using UnityEngine;
 
 public class RoboticArm : MonoBehaviour {
 
-    Chromosome chromosome;
+    public Chromosome chromosome;
     public GameObject[] Joints;
     private Vector3 target;
     public GameObject endEffector;
+    public bool freeze=false;
+    public bool updateItMan = false;
 
     public void InitArm(Chromosome _chromosome, Vector3 _target)
     {
@@ -22,13 +24,22 @@ public class RoboticArm : MonoBehaviour {
 	
 	// Update is called once per frame
 	void Update () {
-        
-	}
-
-    public void Evolve(RoboticArm roboticArm)
-    {
-        chromosome = chromosome.Evolve(roboticArm.chromosome);
+        if (!freeze)
+        {
+            //    if (updateItMan)
+            //{ 
+                for (int i = 0; i < Joints.Length; i++)
+                {
+                    Joints[i].transform.rotation = chromosome.genes[i];
+                }
+            //}
+        }
     }
+
+    //public Chromosome Evolve(RoboticArm roboticArm)
+    //{
+    //    return chromosome.Evolve(roboticArm.chromosome);
+    //}
 
     public double fitness
     {
