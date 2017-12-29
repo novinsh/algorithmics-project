@@ -81,79 +81,87 @@ public class Population_Controller : MonoBehaviour {
         population.Reverse();
         List<Chromosome> evolvedChromosomes = new List<Chromosome>();
         int eliteSize = (int)(eliteRate * populationSize);
-        float mutationChance = Random.Range(0.0f, 1.0f);
-        int mutationSize = 0;
-        //Debug.Log("Elite Size" + eliteSize);
 
-        // FIXME: This type of mutation is probably not effective or correct in essence!
-        if (mutationChance <= mutationRate)
-        {
-            mutationSize = (int)(0.1 * (populationSize - eliteSize));  // mutation fraction
-            Debug.Log("Mutation size" + mutationSize);
-        }
-
-        // Pick elite 
+        // pick elite and add noise
         for (int i = 0; i < eliteSize; i++)
         {
+            if (i % 2 == 0)
+            {
+                AddNoise(ref population[i].chromosome, Random.Range(1, chromosomeLength / 2));
+            }
             evolvedChromosomes.Add(population[i].chromosome);
         }
 
-        // Mutate
-        System.Random rand = new System.Random();
-        for (int i = 0; i < mutationSize; i++)
-        {
-            int j = rand.Next(eliteSize, populationSize);
-            evolvedChromosomes.Add(Mutate(population[j].chromosome));
-        }
+        // ----------------------------------------------------------------
 
-        // Crossover (use elite-elite and elite-non-elite offsprings)
-        int crossOverSize = (populationSize - eliteSize - mutationSize) / 2;
-        int eliteCrossOverSize = (int)(0.1 * crossOverSize);
-        for (int i = 0; i < (populationSize - eliteSize - mutationSize) / 2; i++)
+        // cross over elite-elite 
+        System.Random rand1 = new System.Random();
+        List<Chromosome> elites = new List<Chromosome>(evolvedChromosomes);
+        for (int i = 0; i < 8; i++)
         {
-            int j = rand.Next(0, eliteSize - 1); // first parent (always from elite)
-            //print(j);
-            Chromosome[] children = null;
-            if (i <= eliteCrossOverSize) // elite-elite crossover
-            {
-                int k = rand.Next(eliteSize, populationSize - 1); // second parent (elite)
-                children = Crossover(evolvedChromosomes[j], population[k].chromosome);
-            }
-            else // elite-non-elite crossover
-            {
-                int k = rand.Next(0, eliteSize - 1); // second parent (non-elite)
-                children = Crossover(evolvedChromosomes[j], evolvedChromosomes[k]);
-            }
+            int parent_1_idx = rand1.Next(0, eliteSize - 1);
+            int parent_2_idx = rand1.Next(0, eliteSize - 1);
+            elites.Remove(evolvedChromosomes[parent_1_idx]);
+            elites.Remove(evolvedChromosomes[parent_2_idx]);
+            Chromosome[] children =
+                Crossover(evolvedChromosomes[parent_1_idx], evolvedChromosomes[parent_2_idx]);
 
             evolvedChromosomes.Add(children[0]);
             evolvedChromosomes.Add(children[1]);
         }
 
-        // Debug.Log("evolvedChromSize" + evolvedChromosomes.Count);
-        Dictionary<string, int> sameChromosomesCount = new Dictionary<string, int>();
-        for (int i = 0; i < evolvedChromosomes.Count; i++)
-        {
-            // pass the evolved chromosomes to the next generation population
-            population[i].chromosome = evolvedChromosomes[i];
-            if (sameChromosomesCount.ContainsKey(population[i].chromosome.getInString()))
-                sameChromosomesCount[population[i].chromosome.getInString()] += 1;
-            else
-                sameChromosomesCount[population[i].chromosome.getInString()] = 1;
-            //Debug.Log(i + ": " + population[i].chromosome.getInString());
-            //Debug.Log("gene0: " + population[i].chromosome.genes[0]);
-        }
+        // ----------------------------------------------------------------
 
-        // A debug to see frequency of same chromosomes in population:
-        //foreach(KeyValuePair<string, int> entry in sameChromosomesCount)
+        // cross over elite-non-elite 
+        //System.Random rand2 = new System.Random();
+        //for (int i = 0; i < elites.Count(); i++)
         //{
-        //    Debug.Log(entry.Key + ": " + entry.Value);
+        //    int parent_1_idx = i;
+        //    int parent_2_idx = rand2.Next(eliteSize, population.Count());
+        //    Chromosome[] children =
+        //        Crossover(elites[parent_1_idx], population[parent_2_idx].chromosome);
+
+        //    evolvedChromosomes.Add(children[0]);
+        //    evolvedChromosomes.Add(children[1]);
         //}
 
-        // FIXME: fix the following scenario
-        if (evolvedChromosomes.Count < populationSize)
+        // ----------------------------------------------------------------
+
+        // cross over none-elite-none-elite
+        //System.Random rand3 = new System.Random();
+        //for (int i = 0; i < (populationSize - eliteSize)/2; i++)
+        //{
+        //    int parent_1_idx = rand3.Next(eliteSize, populationSize);
+        //    int parent_2_idx = rand3.Next(eliteSize, populationSize);
+        //    Chromosome[] children =
+        //        Crossover(population[parent_1_idx].chromosome, population[parent_2_idx].chromosome);
+
+        //    evolvedChromosomes.Add(children[0]);
+        //    evolvedChromosomes.Add(children[1]);
+        //}
+
+        // ----------------------------------------------------------------
+
+        // Mutate
+        System.Random rand4 = new System.Random();
+        //int mutationSize = populationSize - evolvedChromosomes.Count();
+        int mutationSize = 10;
+        for (int i = 0; i < mutationSize; i++)
+        {
+            int j = rand4.Next(0, eliteSize);
+            evolvedChromosomes.Add(Mutate(population[j].chromosome, 2));
+        }
+
+        if (evolvedChromosomes.Count != populationSize)
         {
             Debug.LogError(populationSize - evolvedChromosomes.Count +
                 " individuals passed to next generation without any alteration!");
+        }
+
+        // pass the evolved chromosomes to the next generation population
+        for (int i = 0; i < evolvedChromosomes.Count; i++)
+        {
+            population[i].chromosome = evolvedChromosomes[i];
         }
 
         // Reset Joints to initial positions
@@ -162,7 +170,7 @@ public class Population_Controller : MonoBehaviour {
         StartCoroutine(DelayEvolution());
     }
 
-    private void Noise(ref Chromosome chrome, int effectedGenes)
+    private void AddNoise(ref Chromosome chrome, int effectedGenes)
     {
         for(int i = chrome.genes.Count()-1; i>=chrome.genes.Count()-effectedGenes;i--)
         {
@@ -172,13 +180,16 @@ public class Population_Controller : MonoBehaviour {
         }
     }
 
-    private Chromosome Mutate(Chromosome chrome)
+    private Chromosome Mutate(Chromosome chrome, int effectedLastGenes = 1)
     {
-        // alter one of the genes randomly
-        int i = Random.Range(0, chromosomeLength-1); 
+        int i = Random.Range(chromosomeLength-effectedLastGenes, chromosomeLength - 1); 
         chrome.genes[i] = Quaternion.Euler(Random.Range(-90, 90), 0, Random.Range(-90, 90));
         return chrome;
-        //return new Chromosome(4); // generate totaly a new chromosome randomly
+    }
+
+    private Chromosome Mutate()
+    {
+        return new Chromosome(4); // generate totaly a new chromosome randomly
     }
 
     private Chromosome[] Crossover(Chromosome father, Chromosome mother)
