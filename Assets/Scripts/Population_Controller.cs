@@ -6,43 +6,41 @@ using System.Linq;
 public class Population_Controller : MonoBehaviour {
 
     List<RoboticArm> population = new List<RoboticArm>();
-    int populationSize=100;
-    int chromosomeLength=4;
-    double eliteRate=0.3f;
-    double mutationRate = 0.01f;
-    public GameObject target;
-    public GameObject prefab;
+    int populationSize = 100;   // number of robotic arms (virtual creatures)
+    int chromosomeLength =4;    // number of genes (properties of the creature)
+    double eliteRate = 0.3f;    // number of top best individuals in each generation
+    double mutationRate = 0.1f; // chance of getting mutated for each individual 
+    public GameObject target;   // target for the creature
+    public GameObject prefab;   // prefabrication of the robotic arm
 
-    bool generateNew = false;
-    int generationCounter = 0;
+    bool updateScene = false;   // we update in delayed intervals for visualization purposes
+    int generationCounter = 0;  // to keep track of generation 
 
 
 	// Use this for initialization
 	void Start () {
-        
         InitPopulation();
-
     }
 	
 	// Update is called once per frame
 	void Update () {
-        if (generateNew)
-        {
-                if (generationCounter < 100)
-            {
-                
-                generateNew = false;
-                NewGeneration();
-                generationCounter++;
-            }
-            else
-            {
-                foreach(RoboticArm p in population)
-                {
-                    p.updateItMan = true;
-                }
-            }
+        // update the scene with the defined intervals
+        if (!updateScene)
+            return;
 
+        updateScene = false;
+        if (generationCounter < 100)
+        {
+            Debug.Log("Generation: " + generationCounter);
+            NewGeneration();
+            generationCounter++;
+        }
+        else
+        {
+            //foreach (RoboticArm p in population)
+            //{
+            //    p.updateItMan = true;
+            //}
         }
     }
 
@@ -56,7 +54,7 @@ public class Population_Controller : MonoBehaviour {
         }
         prefab.GetComponent<RoboticArm>().InitArm(new Chromosome(chromosomeLength), target.transform.position);
         population.Add(prefab.GetComponent<RoboticArm>());
-        generateNew = true;
+        updateScene = true;
     }
 
 
@@ -68,66 +66,94 @@ public class Population_Controller : MonoBehaviour {
         int eliteSize = (int)(eliteRate * populationSize);
         float mutationChance = Random.Range(0.0f, 1.0f);
         int mutationSize = 0;
+        //Debug.Log("Elite Size" + eliteSize);
+
+        // FIXME: This type of mutation is probably not effective or correct in essence!
         if (mutationChance <= mutationRate)
         {
-            mutationSize = (int)(0.1 * (populationSize - populationSize));  // mutation fraction
+            mutationSize = (int)(0.1 * (populationSize - eliteSize));  // mutation fraction
+            Debug.Log("Mutation size" + mutationSize);
         }
 
-        // Pick elite
+        // Pick elite 
         for (int i = 0; i < eliteSize; i++)
         {
             evolvedChromosomes.Add(population[i].chromosome);
         }
 
-
         // Mutate
+        System.Random rand = new System.Random();
         for (int i=0; i< mutationSize; i++)
         {
-            System.Random rand = new System.Random();
             int j = rand.Next(eliteSize, populationSize);
             evolvedChromosomes.Add(Mutate(population[j].chromosome));
         }
 
-        // Crossover
-        // TODO: do not considern only the elit for crossover (that's discrimination!)
+        // Crossover (use elite-elite and elite-non-elite offsprings)
+        int crossOverSize = (populationSize - eliteSize - mutationSize) / 2;
+        int eliteCrossOverSize = (int)(0.1 * crossOverSize);
         for (int i = 0; i < (populationSize - eliteSize - mutationSize) / 2; i++)
         {
-            System.Random rand = new System.Random();
-            int j = rand.Next(0, eliteSize - 1); // to evolve (target individual)
-            int k = rand.Next(0, eliteSize - 1); // to use as partner
-            List<Chromosome> children = 
-                Crossover(evolvedChromosomes[j], evolvedChromosomes[k]);
+            int j = rand.Next(0, eliteSize - 1); // first parent (always from elite)
+            Chromosome[] children = null;
+            if (i <= eliteCrossOverSize) // elite-elite crossover
+            {
+                int k = rand.Next(eliteSize, populationSize - 1); // second parent (elite)
+                children = Crossover(evolvedChromosomes[j], population[k].chromosome);
+            }
+            else // elite-non-elite crossover
+            {
+                int k = rand.Next(0, eliteSize - 1); // second parent (non-elite)
+                children = Crossover(evolvedChromosomes[j], evolvedChromosomes[k]);
+            }
 
             evolvedChromosomes.Add(children[0]);
             evolvedChromosomes.Add(children[1]);
         }
 
-        for(int i=0;i< evolvedChromosomes.Count;i++)
+        // Debug.Log("evolvedChromSize" + evolvedChromosomes.Count);
+        Dictionary<string, int> sameChromosomesCount = new Dictionary<string, int>();
+        for (int i=0;i< evolvedChromosomes.Count;i++)
         {
-
-            population[i].chromosome = evolvedChromosomes[i];
-            Debug.Log(population[i].chromosome.genes[0]);
+            // pass the evolved chromosomes to the next generation population
+            population[i].chromosome = evolvedChromosomes[i]; 
+            if (sameChromosomesCount.ContainsKey(population[i].chromosome.getInString()))
+                sameChromosomesCount[population[i].chromosome.getInString()] += 1;
+            else
+                sameChromosomesCount[population[i].chromosome.getInString()] = 1;
+            //Debug.Log(i + ": " + population[i].chromosome.getInString());
+            //Debug.Log("gene0: " + population[i].chromosome.genes[0]);
         }
 
-        // TODO: fill up the population before we extinct!
+        // A debug to see frequency of same chromosomes in population:
+        //foreach(KeyValuePair<string, int> entry in sameChromosomesCount)
+        //{
+        //    Debug.Log(entry.Key + ": " + entry.Value);
+        //}
+
+        // FIXME: fix the following scenario
         if (evolvedChromosomes.Count < populationSize)
         {
-            Debug.Log("What have you done to his world!");
+            Debug.LogError(populationSize-evolvedChromosomes.Count + 
+                " individuals passed to next generation without any alteration!");
         }
 
         // Reset Joints to initial positions
         ResetToInitial();
-
+        // Put a delay for visualization purpose
         StartCoroutine(DelayEvolution());
     }
 
-    private Chromosome Mutate(Chromosome c)
+    private Chromosome Mutate(Chromosome chrome)
     {
-        // TODO: mutute the c (input)
-        return new Chromosome(4);
+        // alter one of the genes randomly
+        int i = Random.Range(0, chromosomeLength-1); 
+        chrome.genes[i] = Quaternion.Euler(Random.Range(-90, 90), 0, Random.Range(-90, 90));
+        return chrome;
+        //return new Chromosome(4); // generate totaly a new chromosome randomly
     }
 
-    private List<Chromosome> Crossover(Chromosome father, Chromosome mother)
+    private Chromosome[] Crossover(Chromosome father, Chromosome mother)
     {
         int cutOff = Random.Range(1, chromosomeLength - 2);
         List<Quaternion> child1_genes = new List<Quaternion>();
@@ -149,10 +175,7 @@ public class Population_Controller : MonoBehaviour {
 
         Chromosome child1 = new Chromosome(child1_genes);
         Chromosome child2 = new Chromosome(child2_genes);
-        List<Chromosome> children = new List<Chromosome>();
-        children.Add(child1);
-        children.Add(child2);
-        //Chromosome[] children = new Chromosome[2] { child1, child2}; // happy children
+        Chromosome[] children = new Chromosome[2] { child1, child2 }; // happy children
         return children;
     }
 
@@ -162,23 +185,24 @@ public class Population_Controller : MonoBehaviour {
         foreach(RoboticArm arm in population)
         {
             arm.freeze = true;
-            foreach (GameObject joint in arm.Joints)
-            {
-                joint.transform.rotation = Quaternion.identity;
-            }
+            // TODO: maybe better not to reset!
+            //foreach (GameObject joint in arm.Joints)
+            //{
+            //    joint.transform.rotation = Quaternion.identity;
+            //}
         }
     }
 
 
     IEnumerator DelayEvolution()
     {
-        yield return new WaitForSeconds(0.01f);
+        yield return new WaitForSeconds(0.1f);
         foreach (RoboticArm arm in population)
         {
             arm.freeze = false;
         }
 
-        yield return new WaitForSeconds(0.01f);
-        generateNew = true;
+        yield return new WaitForSeconds(0.1f);
+        updateScene = true;
     }
 }

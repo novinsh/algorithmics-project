@@ -1,15 +1,12 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class RoboticArm : MonoBehaviour {
 
-    public Chromosome chromosome;
-    public GameObject[] Joints;
-    private Vector3 target;
-    public GameObject endEffector;
-    public bool freeze=false;
-    public bool updateItMan = false;
+    public Chromosome chromosome;   // analogous the creature DNA defining its characteristics
+    public GameObject[] Joints;     // joints of the creature that is being emulated in the simulation
+    private Vector3 target;         // target to which arm should reach
+    public GameObject endEffector;  // the endpoint of the arm
+    public bool freeze = false;     // handled by the population_controller to control when arm positions should be updated on scene
 
     public void InitArm(Chromosome _chromosome, Vector3 _target)
     {
@@ -26,13 +23,10 @@ public class RoboticArm : MonoBehaviour {
 	void Update () {
         if (!freeze)
         {
-            //    if (updateItMan)
-            //{ 
-                for (int i = 0; i < Joints.Length; i++)
-                {
-                    Joints[i].transform.rotation = chromosome.genes[i];
-                }
-            //}
+            for (int i = 0; i < Joints.Length; i++)
+            {
+                Joints[i].transform.rotation = chromosome.genes[i];
+            }
         }
     }
 
