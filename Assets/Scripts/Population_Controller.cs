@@ -6,12 +6,28 @@ using System.Linq;
 public class Population_Controller : MonoBehaviour {
 
     List<RoboticArm> population = new List<RoboticArm>();
-    int populationSize = 100;   // number of robotic arms (virtual creatures)
-    int chromosomeLength =4;    // number of genes (properties of the creature)
-    double eliteRate = 0.3f;    // number of top best individuals in each generation
-    double mutationRate = 0.1f; // chance of getting mutated for each individual 
+    [Header("Tweakers")]
+    [Space(15)]
+    public int populationSize = 100;   // number of robotic arms (virtual creatures)
+    [HideInInspector]
+    public int chromosomeLength;    // number of genes (properties of the creature)
+    [Range(0,1)]
+    public float eliteRate;    // number of top best individuals in each generation
+    [Range(0, 1)]
+    public float mutationRate = 0.1f; // chance of getting mutated for each individual 
+    //[Range(0, 0.5f)]
+    //public float crossOverRate;    // number of top best individuals in each generation
+
+    //[Range(-1,1)]
+    public float noiseRate;
+
+
+    [Header("References")]
+    [Space(15)]
     public GameObject target;   // target for the creature
     public GameObject prefab;   // prefabrication of the robotic arm
+
+
 
     bool updateScene = false;   // we update in delayed intervals for visualization purposes
     int generationCounter = 0;  // to keep track of generation 
@@ -19,6 +35,7 @@ public class Population_Controller : MonoBehaviour {
 
 	// Use this for initialization
 	void Start () {
+        chromosomeLength = prefab.GetComponent<RoboticArm>().Joints.Count();
         InitPopulation();
     }
 	
@@ -31,7 +48,7 @@ public class Population_Controller : MonoBehaviour {
         updateScene = false;
         if (generationCounter < 100)
         {
-            Debug.Log("Generation: " + generationCounter);
+            //Debug.Log("Generation: " + generationCounter);
             NewGeneration();
             generationCounter++;
         }
@@ -83,7 +100,7 @@ public class Population_Controller : MonoBehaviour {
 
         // Mutate
         System.Random rand = new System.Random();
-        for (int i=0; i< mutationSize; i++)
+        for (int i = 0; i < mutationSize; i++)
         {
             int j = rand.Next(eliteSize, populationSize);
             evolvedChromosomes.Add(Mutate(population[j].chromosome));
@@ -95,6 +112,7 @@ public class Population_Controller : MonoBehaviour {
         for (int i = 0; i < (populationSize - eliteSize - mutationSize) / 2; i++)
         {
             int j = rand.Next(0, eliteSize - 1); // first parent (always from elite)
+            //print(j);
             Chromosome[] children = null;
             if (i <= eliteCrossOverSize) // elite-elite crossover
             {
@@ -113,10 +131,10 @@ public class Population_Controller : MonoBehaviour {
 
         // Debug.Log("evolvedChromSize" + evolvedChromosomes.Count);
         Dictionary<string, int> sameChromosomesCount = new Dictionary<string, int>();
-        for (int i=0;i< evolvedChromosomes.Count;i++)
+        for (int i = 0; i < evolvedChromosomes.Count; i++)
         {
             // pass the evolved chromosomes to the next generation population
-            population[i].chromosome = evolvedChromosomes[i]; 
+            population[i].chromosome = evolvedChromosomes[i];
             if (sameChromosomesCount.ContainsKey(population[i].chromosome.getInString()))
                 sameChromosomesCount[population[i].chromosome.getInString()] += 1;
             else
@@ -134,7 +152,7 @@ public class Population_Controller : MonoBehaviour {
         // FIXME: fix the following scenario
         if (evolvedChromosomes.Count < populationSize)
         {
-            Debug.LogError(populationSize-evolvedChromosomes.Count + 
+            Debug.LogError(populationSize - evolvedChromosomes.Count +
                 " individuals passed to next generation without any alteration!");
         }
 
@@ -142,6 +160,16 @@ public class Population_Controller : MonoBehaviour {
         ResetToInitial();
         // Put a delay for visualization purpose
         StartCoroutine(DelayEvolution());
+    }
+
+    private void Noise(ref Chromosome chrome, int effectedGenes)
+    {
+        for(int i = chrome.genes.Count()-1; i>=chrome.genes.Count()-effectedGenes;i--)
+        {
+            float randNoise = Random.Range(-1, 1);
+            chrome.genes[i] = Quaternion.Euler(chrome.genes[i].x + randNoise, 0, chrome.genes[i].z + randNoise);
+
+        }
     }
 
     private Chromosome Mutate(Chromosome chrome)
