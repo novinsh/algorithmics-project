@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 using System.Linq;
 
 public class Population_Controller : MonoBehaviour {
@@ -27,6 +28,9 @@ public class Population_Controller : MonoBehaviour {
     [Space(15)]
     public GameObject target;   // target for the creature
     public GameObject prefab;   // prefabrication of the robotic arm
+
+
+    public int InitialPopCounter = 0;
 
 
     bool updateScene = false;   // we update in delayed intervals for visualization purposes
