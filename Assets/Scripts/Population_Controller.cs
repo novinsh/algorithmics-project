@@ -10,7 +10,7 @@ public class Population_Controller : MonoBehaviour {
     [Header("Tweakers")]
     [Space(15)]
     public int populationSize = 100;    // number of robotic arms (virtual creatures)
-    public int numOfGenerations = 100;  // number of generations
+    public int numOfGenerations;  // number of generations
     [HideInInspector]
     public int chromosomeLength;        // number of genes (properties of the creature) = chromosomeLength
     [Range(0, 1f)]
