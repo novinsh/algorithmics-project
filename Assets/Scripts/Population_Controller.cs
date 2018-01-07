@@ -23,11 +23,16 @@ public class Population_Controller : MonoBehaviour {
     //[Range(-1,1)]
     public float noiseRate;     // TODO: employ this factor!
 
+    public bool Pause = false;  // Pause called by user to stop iteration and see current best
+
 
     [Header("References")]
     [Space(15)]
     public GameObject target;   // target for the creature
     public GameObject prefab;   // prefabrication of the robotic arm
+    public Text UIcurrentGeneration;
+    public Text UIpopulation;
+    public Text UICurrentFittest;
 
 
     public int InitialPopCounter = 0;
@@ -35,34 +40,87 @@ public class Population_Controller : MonoBehaviour {
 
     bool updateScene = false;   // we update in delayed intervals for visualization purposes
     int generationCounter = 0;  // to keep track of generation 
+    bool playAnimation = true;
 
 
 	// Use this for initialization
 	void Start () {
         chromosomeLength = prefab.GetComponent<RoboticArm>().Joints.Count();
         InitPopulation();
+        UIpopulation.text = "Population Size: " + populationSize;
     }
 	
 	// Update is called once per frame
 	void Update () {
-        // update the scene with the defined intervals
-        if (!updateScene)
-            return;
 
-        updateScene = false;
-        // TODO: stop optimization when reached at the target!
-        if (generationCounter < numOfGenerations)
+        // if user paused the iteration
+        if (!Pause)
         {
-            //Debug.Log("Generation: " + generationCounter);
-            NewGeneration();
-            generationCounter++;
+            // Unfreeze arms
+            if(!playAnimation)
+            {
+                population[0].StopTween();
+                foreach (RoboticArm arm in population)
+                {
+                    arm.freeze = false;
+                    arm.gameObject.SetActive(true);
+                }
+                playAnimation = true;
+            }
+            
+            // update the scene with the defined intervals
+            if (!updateScene)
+                return;
+
+            updateScene = false;
+
+            // TODO: stop optimization when reached at the target!
+            if (generationCounter < numOfGenerations)
+            {
+
+                //Debug.Log("Generation: " + generationCounter);
+                NewGeneration();
+                generationCounter++;
+            }
+            else // This is to update only if we want to show the final result of the optimization!
+            {
+                //foreach (RoboticArm p in population)
+                //{
+                //    p.freeze = false;
+                //}
+            }
+            //Current Gen and Fittest Text
+            UIcurrentGeneration.text = "Current Generation: " + generationCounter;
         }
-        else // This is to update only if we want to show the final result of the optimization!
+        else
         {
-            //foreach (RoboticArm p in population)
-            //{
-            //    p.freeze = false;
-            //}
+            if(playAnimation)
+            {
+                playAnimation = false;
+                foreach(RoboticArm arm in population)
+                {
+                    arm.freeze = true;
+                    arm.gameObject.SetActive(false);
+                }
+                population = population.OrderBy(o => o.fitness).ToList();
+                population.Reverse();
+                RoboticArm currentFittest = population[0];
+                Vector3[] jointAngles = new Vector3[currentFittest.Joints.Length];
+                for(int i =0;i<jointAngles.Length;i++)
+                {
+                    jointAngles[i] = currentFittest.Joints[i].transform.rotation.eulerAngles;
+                }
+                foreach(GameObject joint in currentFittest.Joints)
+                {
+                    joint.transform.rotation = Quaternion.identity;
+                }
+
+                currentFittest.gameObject.SetActive(true);
+                //jointAngles.Reverse();
+                currentFittest.JointsRotationalVector = jointAngles;
+                currentFittest.PlayTween();
+            }
+
         }
     }
 
@@ -82,9 +140,16 @@ public class Population_Controller : MonoBehaviour {
 
     void NewGeneration()
     {
+       
+
         // find fitness of the population
         population = population.OrderBy(o => o.fitness).ToList();
         population.Reverse();   // sort descending
+
+
+        // Show current fittest
+        UICurrentFittest.text = population[0].gameObject.name + "   : " + System.Math.Round(population[0].fitness,5);
+
         List<Chromosome> evolvedChromosomes = new List<Chromosome>();
         int eliteSize = (int)(eliteRate * populationSize);
 
@@ -256,7 +321,8 @@ public class Population_Controller : MonoBehaviour {
         yield return new WaitForSeconds(0.1f);
         foreach (RoboticArm arm in population)
         {
-            arm.freeze = false;
+            if(!Pause)
+                arm.freeze = false;
         }
 
         yield return new WaitForSeconds(0.1f);
