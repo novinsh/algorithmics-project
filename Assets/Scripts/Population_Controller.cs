@@ -159,7 +159,7 @@ public class Population_Controller : MonoBehaviour {
             if (i % 2 == 0)
             {
                 // FIXME: the noise is biased - turns the endeffector upward (perhaps a gaussian noise is better!)
-                // AddNoise(ref population[i].chromosome, Random.Range(1, chromosomeLength / 2));
+                //AddNoise(ref population[i].chromosome, Random.Range(1, chromosomeLength-1));
             }
             evolvedChromosomes.Add(population[i].chromosome);
         }
@@ -226,10 +226,12 @@ public class Population_Controller : MonoBehaviour {
                 if( i < eliteSize)
                 {
                     Mutate(evolvedChromosomes[i], 2);
+
                 }
                 else // mutate all joints for non-elite
                 {
-                    Mutate(evolvedChromosomes[i]);
+                    //Mutate(evolvedChromosomes[i]);
+                    Mutate();
                 }
             }
         }
@@ -253,9 +255,13 @@ public class Population_Controller : MonoBehaviour {
 
     private void AddNoise(ref Chromosome chrome, int effectedGenes)
     {
-        for(int i = chrome.genes.Count()-1; i>=chrome.genes.Count()-effectedGenes;i--)
+        for(int i = chrome.genes.Count()-1; i>=effectedGenes;i--)
         {
-            float randNoise = Random.Range(-1, 1);
+            float randNoise = Random.Range(-0.5f, 0.5f);
+            //testing...
+            //Vector3 temp = new Vector3(chrome.genes[i].eulerAngles.x + randNoise, 0, chrome.genes[i].eulerAngles.x + randNoise);
+            //Quaternion temp2 = Quaternion.EulerAngles(temp);
+            //chrome.genes[i] = temp2;
             chrome.genes[i] = Quaternion.Euler(chrome.genes[i].x + randNoise, 0, chrome.genes[i].z + randNoise);
 
         }
